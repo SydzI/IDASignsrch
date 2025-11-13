@@ -2,10 +2,22 @@
 # -*- coding: utf-8 -*-
 
 from idaapi import *
+import ida_segment
+from idc import *
+import ida_diskio
+import ida_ida
 import codecs
 import time
 import os
 
+
+def get_endianness():
+    # use new api in IDApro 9.0 to get endianness
+    if ida_ida.inf_is_be():
+        return True  # big endian
+    else:
+        return False  # little endian
+    
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
@@ -14,7 +26,7 @@ def chunks(l, n):
 def load_signatures():
     import xml.etree.ElementTree as ET
 
-    db = idadir("plugins/signsrch.xml")
+    db = ida_diskio.idadir("plugins/signsrch.xml")
     if not os.path.isfile(db):
         db = os.path.join(get_user_idadir(), "plugins/signsrch.xml")
     root = ET.parse(db).getroot()
@@ -60,7 +72,7 @@ class Chooser(Choose):
 
     def OnGetLine(self, n):
         addr, label = self.items[n]
-        seg_name = get_segm_name(getseg(addr))
+        seg_name = ida_segment.get_segm_name(getseg(addr))
         if seg_name:
             return ["%s:%X" % (seg_name, addr), label]
         else:
@@ -82,9 +94,10 @@ class signsrch_t(plugin_t):
     def init(self):
         print("Signsrch (Python Version) (v1.0) plugin has been loaded.")
         return PLUGIN_OK
-
+    
     def run(self, arg):
-        ignored = ["be", "le"][cvar.inf.is_be()]
+        
+        ignored = ["be", "le"][get_endianness()]
         signatures = [s for s in load_signatures() if s["endian"] != ignored]
 
         if not signatures:
@@ -98,7 +111,7 @@ class signsrch_t(plugin_t):
         found = []
         for i in range(get_segm_qty()):
             seg = getnseg(i)
-            seg_name = get_segm_name(seg)
+            seg_name = ida_segment.get_segm_name(seg)
             seg_class = get_segm_class(seg)
             if seg.type in (SEG_XTRN, SEG_GRP, SEG_NULL, SEG_UNDF, SEG_ABSSYM, SEG_COMM, SEG_IMEM,):
                 print("Skipping segment: %s, %s" % (seg_name, seg_class))
